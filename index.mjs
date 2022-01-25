@@ -4,7 +4,7 @@ import  Nedb  from "nedb";
 
 // const filepath = path.join(__dirname, 'sample1.db');
 const db = new Nedb({
-    // filename: 'todo.db',
+    filename: 'todo.db',
     autoload: true,
 });
 
