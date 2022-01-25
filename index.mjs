@@ -4,11 +4,35 @@ import  Nedb  from "nedb";
 
 // const filepath = path.join(__dirname, 'sample1.db');
 const db = new Nedb({
-    filename: 'todo.db',
+    // filename: 'todo.db',
     autoload: true,
 });
 
+class EventEmitter {
+    constructor() {
+        this._listeners = new Map();
+    }
 
+    addEventListener(type, listener) {
+        if (!this._listeners.has(type)) {
+            this._listeners.set(type, new Set());
+        }
+        const listenerSet = this._listeners.get(type);
+        listenerSet.add(listener);
+    }
+
+    emit(type) {
+        const listenerSet = this._listeners.get(type);
+        if (!listenerSet) {
+            return;
+        }
+        listenerSet.forEach(listener => {
+            listener.call(this);
+        });
+    }
+}
+
+const eventEmitter = new EventEmitter()  // ここだけクラスインスタンスを使用します
 const formElement = document.querySelector("#js-form");
 const inputElement = document.querySelector("#js-form-input");
 const containerElement = document.querySelector("#js-todo-list");
@@ -25,6 +49,7 @@ formElement.addEventListener("submit" , (event) => {
         "id": idNum ++,
         "title": inputElement.value,
         "completed" : false,
+        "created": new Date(),
     };
     db.insert(item, function (err, newDoc) {   // Callback is optional
       if(err) {console.error('Err: ',err)}
@@ -34,30 +59,30 @@ formElement.addEventListener("submit" , (event) => {
 
     // todoListItems.push(item);
     inputElement.value = "";
-
-    // console.log(todoListItems)
-
-    // view関係
-    const ulElement = htmlToElement(`<ul />`)
-    getAll()
-      .then(res => {
-        res.forEach((ITEM) => {
-            const liElement = htmlToElement(`<li>${ITEM.title}</li>`)
-            ulElement.appendChild(liElement)
-        })
-        // console.log(res)
-      })
-    containerElement.innerHTML = "";
-    containerElement.appendChild(ulElement);
-
-    getCount()
-      .then(count => { 
-        // console.log(count)
-        todoItemCountElement.textContent = `Todoアイテム数 : ${count}`
-      })
-
+    eventEmitter.emit("todoListItems Update")
 
 })
+
+// view関係
+eventEmitter.addEventListener("todoListItems Update", () => {
+  const ulElement = htmlToElement(`<ul />`)
+  getAll()
+    .then(res => {
+      res.forEach((ITEM) => {
+          const liElement = htmlToElement(`<li>${ITEM.title}</li>`)
+          ulElement.appendChild(liElement)
+      })
+      // console.log(res)
+    })
+  containerElement.innerHTML = "";
+  containerElement.appendChild(ulElement);
+
+  getCount()
+    .then(count => { 
+      // console.log(count)
+      todoItemCountElement.textContent = `Todoアイテム数 : ${count}`
+    })
+});
 
 
 function htmlToElement(html) {
@@ -69,7 +94,8 @@ function htmlToElement(html) {
 
 const getAll= () => {
   return new Promise((resolve, reject) => {
-    db.find({}, (err, data)=> {
+    // db.find({}, (err, data)=> {
+    db.find().sort({ created: 1 }).exec((err, data) =>{
       if (err) { reject(err)}
       else resolve(data)
     })
